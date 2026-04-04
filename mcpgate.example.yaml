@@ -1,0 +1,55 @@
+# MCPGate Configuration
+# Full reference: https://github.com/mprezz/mcpgate#configuration
+
+gateway:
+  name: "my-mcpgate"
+  # Transport mode:
+  #   stdio — for Claude Desktop (spawned as subprocess)
+  #   http  — for remote clients (Railway, Docker)
+  #   both  — stdio + HTTP simultaneously
+  transport: "stdio"
+  # HTTP port (only used when transport is "http" or "both")
+  # Overridden by PORT env var if set (Railway does this automatically)
+  port: 3000
+  # Prefix tool names with server name to avoid collisions
+  # e.g., "github.create_issue" instead of "create_issue"
+  toolPrefix: true
+
+servers:
+  # Stdio server — MCPGate spawns the process
+  - name: "github"
+    transport: "stdio"
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+    tools:
+      # Allowlist: only these tools are exposed (mutually exclusive with block)
+      allow:
+        - "create_issue"
+        - "search_repos"
+        - "list_issues"
+
+  # Another stdio server — no filtering (all tools exposed)
+  - name: "filesystem"
+    transport: "stdio"
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+    tools:
+      # Blocklist: all tools EXCEPT these are exposed
+      block:
+        - "write_file"
+        - "delete_file"
+
+  # Remote HTTP server
+  # - name: "remote-api"
+  #   transport: "http"
+  #   url: "https://my-remote-mcp.example.com/mcp"
+  #   headers:
+  #     Authorization: "Bearer ${API_TOKEN}"
+  #   tools:
+  #     block:
+  #       - "dangerous_operation"
+
+logging:
+  level: "info"

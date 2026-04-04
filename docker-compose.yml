@@ -1,0 +1,12 @@
+services:
+  mcpgate:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./mcpgate.example.yaml:/app/mcpgate.yaml:ro
+    environment:
+      - LOG_LEVEL=info
+    env_file:
+      - .env
+    restart: unless-stopped
