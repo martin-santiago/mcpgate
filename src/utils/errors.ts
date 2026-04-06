@@ -38,3 +38,10 @@ export class GatewayStartError extends McpGateError {
     this.name = "GatewayStartError";
   }
 }
+
+export class ConfigError extends McpGateError {
+  constructor(message: string) {
+    super(message, "CONFIG_ERROR");
+    this.name = "ConfigError";
+  }
+}

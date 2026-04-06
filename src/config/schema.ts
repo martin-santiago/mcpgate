@@ -6,8 +6,7 @@ const toolFilterSchema = z
     block: z.array(z.string()).optional(),
   })
   .refine((filter) => !(filter.allow && filter.block), {
-    message:
-      "Cannot specify both 'allow' and 'block' for tools. Use one or the other.",
+    message: "Cannot specify both 'allow' and 'block' for tools. Use one or the other.",
   })
   .optional();
 
@@ -61,10 +60,45 @@ export const configSchema = z.object({
   logging: loggingSchema.default({}),
 });
 
-export type McpGateConfig = z.infer<typeof configSchema>;
-export type GatewayConfig = z.infer<typeof gatewaySchema>;
-export type ServerConfig = z.infer<typeof serverSchema>;
-export type StdioServerConfig = z.infer<typeof stdioServerSchema>;
-export type HttpServerConfig = z.infer<typeof httpServerSchema>;
-export type LoggingConfig = z.infer<typeof loggingSchema>;
-export type ToolFilter = z.infer<typeof toolFilterSchema>;
+export type ToolFilter =
+  | {
+      allow?: string[];
+      block?: string[];
+    }
+  | undefined;
+
+export type StdioServerConfig = {
+  name: string;
+  transport: "stdio";
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  tools?: ToolFilter;
+};
+
+export type HttpServerConfig = {
+  name: string;
+  transport: "http";
+  url: string;
+  headers: Record<string, string>;
+  tools?: ToolFilter;
+};
+
+export type ServerConfig = StdioServerConfig | HttpServerConfig;
+
+export type GatewayConfig = {
+  name: string;
+  transport: "stdio" | "http" | "both";
+  port: number;
+  toolPrefix: boolean;
+};
+
+export type LoggingConfig = {
+  level: "debug" | "info" | "warn" | "error";
+};
+
+export type McpGateConfig = {
+  gateway: GatewayConfig;
+  servers: ServerConfig[];
+  logging: LoggingConfig;
+};

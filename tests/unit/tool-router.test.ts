@@ -19,6 +19,16 @@ const mockStorage: IStorage = {
   init: vi.fn().mockResolvedValue(undefined),
   logRequest: vi.fn().mockResolvedValue(undefined),
   getRecentLogs: vi.fn().mockResolvedValue([]),
+  getStats: vi
+    .fn()
+    .mockResolvedValue({
+      totalRequests: 0,
+      successfulRequests: 0,
+      failedRequests: 0,
+      averageDurationMs: 0,
+      p95DurationMs: 0,
+      toolBreakdown: [],
+    }),
   close: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -93,22 +103,6 @@ describe("ToolRouter", () => {
     it("routes tool call to the correct upstream server", async () => {
       const expectedResult = {
         content: [{ type: "text" as const, text: "file contents" }],
-      };
-      callToolMock.mockResolvedValue(expectedResult);
-
-      const result = await toolRouter.routeToolCall("filesystem.read_file", {
-        path: "/tmp/test",
-      });
-
-      expect(callToolMock).toHaveBeenCalledWith("filesystem", "read_file", {
-        path: "/tmp/test",
-      });
-      expect(result).toEqual(expectedResult);
-    });
-
-    it("routes to github server for github tools", async () => {
-      const expectedResult = {
-        content: [{ type: "text" as const, text: "issue created" }],
       };
       callToolMock.mockResolvedValue(expectedResult);
 

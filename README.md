@@ -19,7 +19,7 @@ MCPGate sits between your MCP client (Claude Desktop, Claude Code, Cursor, VS Co
 ### Local (stdio — for Claude Desktop)
 
 ```bash
-npx mcpgate start --config mcpgate.yaml
+npx mcp-gate start --config mcpgate.yaml
 ```
 
 Add to your `claude_desktop_config.json`:
@@ -29,7 +29,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "mcpgate": {
       "command": "npx",
-      "args": ["-y", "mcpgate", "start", "--config", "/path/to/mcpgate.yaml"]
+      "args": ["-y", "mcp-gate", "start", "--config", "/path/to/mcpgate.yaml"]
     }
   }
 }
@@ -38,7 +38,7 @@ Add to your `claude_desktop_config.json`:
 ### Local (HTTP — with dashboard)
 
 ```bash
-npx mcpgate start --config mcpgate.yaml
+npx mcp-gate start --config mcpgate.yaml
 # Dashboard at http://localhost:3000
 # MCP endpoint at http://localhost:3000/mcp
 ```
@@ -142,7 +142,7 @@ MCPGate logs every tool call with timing and error information.
 # Local development with Docker Compose
 docker compose up postgres -d
 export DATABASE_URL=postgresql://mcpgate:mcpgate@localhost:5432/mcpgate
-npx mcpgate start --config mcpgate.yaml
+npx mcp-gate start --config mcpgate.yaml
 ```
 
 ## Environment Variables

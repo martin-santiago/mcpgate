@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { configSchema, type McpGateConfig } from "./schema.js";
+import { ConfigError } from "../utils/errors.js";
 
 export type ConfigSource = "cli" | "env" | "file";
 
@@ -71,7 +72,13 @@ function parseAndValidate(rawYaml: string): McpGateConfig {
 
   const portOverride = process.env.PORT;
   if (portOverride) {
-    validationResult.data.gateway.port = parseInt(portOverride, 10);
+    const parsedPort = parseInt(portOverride, 10);
+    if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+      throw new ConfigError(
+        `Invalid PORT environment variable: "${portOverride}" — must be an integer between 1 and 65535`
+      );
+    }
+    validationResult.data.gateway.port = parsedPort;
   }
 
   return validationResult.data;
@@ -87,11 +94,4 @@ function interpolateEnvVars(rawYaml: string): string {
       return "";
     }
   );
-}
-
-export class ConfigError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ConfigError";
-  }
 }

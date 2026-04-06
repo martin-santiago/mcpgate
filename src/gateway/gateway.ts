@@ -1,5 +1,5 @@
 import type { McpGateConfig } from "../config/schema.js";
-import type { IStorage, RequestLogEntry } from "../storage/storage.js";
+import type { IStorage, RequestLogEntry, RequestStats } from "../storage/storage.js";
 import { GatewayStartError } from "../utils/errors.js";
 import { ToolRegistry } from "./tool-registry.js";
 import { ToolRouter } from "./tool-router.js";
@@ -105,6 +105,10 @@ export class Gateway {
 
   async getRecentLogs(limit: number): Promise<RequestLogEntry[]> {
     return this.storage.getRecentLogs(limit);
+  }
+
+  async getRequestStats(): Promise<RequestStats> {
+    return this.storage.getStats();
   }
 
   getStatus(): GatewayStatus {

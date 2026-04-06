@@ -1,5 +1,30 @@
 import { describe, it, expect } from "vitest";
 import { renderDashboard, type DashboardData } from "../../src/dashboard/templates.js";
+import type { RequestStats } from "../../src/storage/storage.js";
+
+const testRequestStats: RequestStats = {
+  totalRequests: 2,
+  successfulRequests: 1,
+  failedRequests: 1,
+  averageDurationMs: 772,
+  p95DurationMs: 1500,
+  toolBreakdown: [
+    {
+      serverName: "filesystem",
+      toolName: "read_file",
+      callCount: 1,
+      successCount: 1,
+      averageDurationMs: 45,
+    },
+    {
+      serverName: "github",
+      toolName: "create_issue",
+      callCount: 1,
+      successCount: 0,
+      averageDurationMs: 1500,
+    },
+  ],
+};
 
 const testDashboardData: DashboardData = {
   gatewayStatus: {
@@ -51,15 +76,25 @@ const testDashboardData: DashboardData = {
       errorMessage: "Timeout",
     },
   ],
+  requestStats: testRequestStats,
+};
+
+const emptyRequestStats: RequestStats = {
+  totalRequests: 0,
+  successfulRequests: 0,
+  failedRequests: 0,
+  averageDurationMs: 0,
+  p95DurationMs: 0,
+  toolBreakdown: [],
 };
 
 describe("Dashboard templates", () => {
-  it("renders valid HTML document", () => {
+  it("renders valid HTML document with auto-refresh", () => {
     const html = renderDashboard(testDashboardData);
 
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("</html>");
-    expect(html).toContain("<title>");
+    expect(html).toContain('<meta http-equiv="refresh" content="10">');
   });
 
   it("renders gateway name and status", () => {
@@ -78,13 +113,15 @@ describe("Dashboard templates", () => {
     expect(html).toContain("Connection refused");
   });
 
-  it("renders tools table with status badges", () => {
+  it("renders tools table with per-tool stats", () => {
     const html = renderDashboard(testDashboardData);
 
     expect(html).toContain("filesystem.read_file");
     expect(html).toContain("filesystem.delete_file");
     expect(html).toContain("active");
     expect(html).toContain("filtered");
+    expect(html).toContain("45ms");
+    expect(html).toContain("100%");
   });
 
   it("renders request logs", () => {
@@ -92,19 +129,18 @@ describe("Dashboard templates", () => {
 
     expect(html).toContain("read_file");
     expect(html).toContain("create_issue");
-    expect(html).toContain("45ms");
     expect(html).toContain("Timeout");
   });
 
-  it("renders stat cards with correct numbers", () => {
+  it("renders aggregate stats cards", () => {
     const html = renderDashboard(testDashboardData);
 
-    // Upstream count
-    expect(html).toContain(">2<");
-    // Active tools
-    expect(html).toContain(">3<");
-    // Filtered tools
-    expect(html).toContain(">2<");
+    expect(html).toContain("Total Requests");
+    expect(html).toContain("Success Rate");
+    expect(html).toContain("Avg Latency");
+    expect(html).toContain("P95 Latency");
+    expect(html).toContain("50%");
+    expect(html).toContain("772ms");
   });
 
   it("escapes HTML in user-provided strings", () => {
@@ -122,6 +158,20 @@ describe("Dashboard templates", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
+  it("escapes single quotes", () => {
+    const singleQuoteData: DashboardData = {
+      ...testDashboardData,
+      gatewayStatus: {
+        ...testDashboardData.gatewayStatus,
+        name: "test's gateway",
+      },
+    };
+
+    const html = renderDashboard(singleQuoteData);
+    expect(html).toContain("&#39;");
+    expect(html).not.toContain("test's");
+  });
+
   it("handles empty data gracefully", () => {
     const emptyData: DashboardData = {
       gatewayStatus: {
@@ -132,6 +182,7 @@ describe("Dashboard templates", () => {
       },
       registeredTools: [],
       recentLogs: [],
+      requestStats: emptyRequestStats,
     };
 
     const html = renderDashboard(emptyData);
@@ -140,5 +191,6 @@ describe("Dashboard templates", () => {
     expect(html).toContain("No upstream servers configured");
     expect(html).toContain("No tools registered");
     expect(html).toContain("No requests logged yet");
+    expect(html).toContain("100%");
   });
 });

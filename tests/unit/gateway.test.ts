@@ -89,6 +89,16 @@ const mockStorage: IStorage = {
   init: vi.fn().mockResolvedValue(undefined),
   logRequest: vi.fn().mockResolvedValue(undefined),
   getRecentLogs: vi.fn().mockResolvedValue([]),
+  getStats: vi
+    .fn()
+    .mockResolvedValue({
+      totalRequests: 0,
+      successfulRequests: 0,
+      failedRequests: 0,
+      averageDurationMs: 0,
+      p95DurationMs: 0,
+      toolBreakdown: [],
+    }),
   close: vi.fn().mockResolvedValue(undefined),
 };
 
