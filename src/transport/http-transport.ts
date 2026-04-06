@@ -7,6 +7,7 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Gateway } from "../gateway/gateway.js";
+import type { AuthConfig } from "../config/schema.js";
 import { createDashboardRoutes } from "../dashboard/routes.js";
 import { MCPGATE_NAME, MCPGATE_VERSION } from "../utils/constants.js";
 import type pino from "pino";
@@ -18,13 +19,49 @@ const CLEANUP_INTERVAL_MS = 60 * 1000;
 export type HttpTransportOptions = {
   gateway: Gateway;
   port: number;
+  auth?: AuthConfig;
   logger: pino.Logger;
 };
 
+function createAuthMiddleware(authConfig: AuthConfig, logger: pino.Logger) {
+  return async (
+    context: {
+      req: { path: string; header: (name: string) => string | undefined };
+      json: (body: unknown, init?: { status: number }) => Response;
+    },
+    next: () => Promise<void>
+  ) => {
+    if (context.req.path === "/health") {
+      return next();
+    }
+
+    const authHeader = context.req.header("authorization");
+
+    if (!authHeader) {
+      logger.debug({ path: context.req.path }, "Request rejected — no auth token");
+      return context.json({ error: "Authorization required" }, { status: 401 });
+    }
+
+    const [scheme, token] = authHeader.split(" ");
+
+    if (scheme !== "Bearer" || token !== authConfig.token) {
+      logger.debug({ path: context.req.path }, "Request rejected — invalid auth token");
+      return context.json({ error: "Invalid authorization token" }, { status: 403 });
+    }
+
+    return next();
+  };
+}
+
 export async function startHttpTransport(options: HttpTransportOptions): Promise<void> {
-  const { gateway, port, logger } = options;
+  const { gateway, port, auth: authConfig, logger } = options;
 
   const app = new Hono();
+
+  if (authConfig) {
+    app.use("*", createAuthMiddleware(authConfig, logger));
+    logger.info("Bearer token auth enabled for HTTP transport");
+  }
 
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
   const sessionLastActivity = new Map<string, number>();

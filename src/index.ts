@@ -57,6 +57,7 @@ program
         await startHttpTransport({
           gateway,
           port: config.gateway.port,
+          auth: config.gateway.auth,
           logger,
         });
       }

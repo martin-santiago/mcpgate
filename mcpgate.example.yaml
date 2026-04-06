@@ -3,17 +3,11 @@
 
 gateway:
   name: "my-mcpgate"
-  # Transport mode:
-  #   stdio — for Claude Desktop (spawned as subprocess)
-  #   http  — for remote clients (Railway, Docker)
-  #   both  — stdio + HTTP simultaneously
-  transport: "stdio"
-  # HTTP port (only used when transport is "http" or "both")
-  # Overridden by PORT env var if set (Railway does this automatically)
+  transport: "stdio" # stdio | http | both
   port: 3000
-  # Prefix tool names with server name to avoid collisions
-  # e.g., "github.create_issue" instead of "create_issue"
   toolPrefix: true
+  # auth:
+  #   token: "${MCPGATE_AUTH_TOKEN}"
 
 servers:
   # Stdio server — MCPGate spawns the process

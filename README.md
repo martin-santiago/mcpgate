@@ -112,6 +112,24 @@ Each server supports `allow` or `block` (mutually exclusive):
 - **`block`** — All tools EXCEPT these are exposed (blacklist)
 - **Neither** — All tools are exposed
 
+### Authentication
+
+Add a bearer token to protect the HTTP transport:
+
+```yaml
+gateway:
+  auth:
+    token: "${MCPGATE_AUTH_TOKEN}"
+```
+
+When auth is configured:
+
+- All endpoints require `Authorization: Bearer <token>` header
+- `/health` remains public (for Railway/Docker health checks)
+- MCP clients pass the token via custom headers in their transport config
+
+Without auth configured, all endpoints are open (for local/private use).
+
 ### Environment Variable Interpolation
 
 Use `${VAR}` or `${VAR:-default}` in YAML to reference environment variables:
@@ -147,12 +165,13 @@ npx mcp-gate start --config mcpgate.yaml
 
 ## Environment Variables
 
-| Variable         | Required | Default | Description                                                   |
-| ---------------- | -------- | ------- | ------------------------------------------------------------- |
-| `PORT`           | No       | `3000`  | HTTP port (Railway sets this automatically)                   |
-| `MCPGATE_CONFIG` | No       | —       | Base64-encoded YAML config (for Railway/Docker)               |
-| `DATABASE_URL`   | No       | —       | PostgreSQL connection string (enables persistent audit trail) |
-| `LOG_LEVEL`      | No       | `info`  | `debug` / `info` / `warn` / `error`                           |
+| Variable             | Required | Default | Description                                                                |
+| -------------------- | -------- | ------- | -------------------------------------------------------------------------- |
+| `PORT`               | No       | `3000`  | HTTP port (Railway sets this automatically)                                |
+| `MCPGATE_CONFIG`     | No       | —       | Base64-encoded YAML config (for Railway/Docker)                            |
+| `DATABASE_URL`       | No       | —       | PostgreSQL connection string (enables persistent audit trail)              |
+| `LOG_LEVEL`          | No       | `info`  | `debug` / `info` / `warn` / `error`                                        |
+| `MCPGATE_AUTH_TOKEN` | No       | —       | Bearer token for HTTP auth (reference in YAML via `${MCPGATE_AUTH_TOKEN}`) |
 
 ## Development
 

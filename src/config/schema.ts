@@ -41,11 +41,18 @@ const serverSchema = z.discriminatedUnion("transport", [
   httpServerSchema,
 ]);
 
+const authSchema = z
+  .object({
+    token: z.string().min(1),
+  })
+  .optional();
+
 const gatewaySchema = z.object({
   name: z.string().min(1).default("mcpgate"),
   transport: z.enum(["stdio", "http", "both"]).default("stdio"),
   port: z.coerce.number().int().min(1).max(65535).default(3000),
   toolPrefix: z.boolean().default(true),
+  auth: authSchema,
 });
 
 const loggingSchema = z.object({
@@ -86,11 +93,16 @@ export type HttpServerConfig = {
 
 export type ServerConfig = StdioServerConfig | HttpServerConfig;
 
+export type AuthConfig = {
+  token: string;
+};
+
 export type GatewayConfig = {
   name: string;
   transport: "stdio" | "http" | "both";
   port: number;
   toolPrefix: boolean;
+  auth?: AuthConfig;
 };
 
 export type LoggingConfig = {
