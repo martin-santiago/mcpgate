@@ -31,3 +31,10 @@ export class ToolFilteredError extends McpGateError {
     this.name = "ToolFilteredError";
   }
 }
+
+export class GatewayStartError extends McpGateError {
+  constructor(message: string) {
+    super(message, "GATEWAY_START_ERROR");
+    this.name = "GatewayStartError";
+  }
+}

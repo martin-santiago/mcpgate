@@ -27,3 +27,4 @@ coverage/
 # SQLite (if ever used locally)
 *.db
 *.sqlite
+.playwright-mcp/

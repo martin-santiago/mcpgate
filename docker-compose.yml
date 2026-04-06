@@ -1,4 +1,15 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: mcpgate
+      POSTGRES_PASSWORD: mcpgate
+      POSTGRES_DB: mcpgate
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   mcpgate:
     build: .
     ports:
@@ -7,6 +18,12 @@ services:
       - ./mcpgate.example.yaml:/app/mcpgate.yaml:ro
     environment:
       - LOG_LEVEL=info
+      - DATABASE_URL=postgresql://mcpgate:mcpgate@postgres:5432/mcpgate
     env_file:
       - .env
+    depends_on:
+      - postgres
     restart: unless-stopped
+
+volumes:
+  pgdata:
