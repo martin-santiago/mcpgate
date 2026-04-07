@@ -1,7 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { ServerConfig, StdioServerConfig } from "../config/schema.js";
+import type {
+  HttpServerConfig,
+  ServerConfig,
+  StdioServerConfig,
+} from "../config/schema.js";
 import { UpstreamConnectionError } from "../utils/errors.js";
 import { MCPGATE_NAME, MCPGATE_VERSION } from "../utils/constants.js";
 import type pino from "pino";
@@ -9,7 +15,7 @@ import type pino from "pino";
 export type UpstreamConnection = {
   serverConfig: ServerConfig;
   client: Client;
-  transport: StdioClientTransport;
+  transport: Transport;
   tools: Tool[];
   status: "connecting" | "connected" | "disconnected" | "error";
   errorMessage?: string;
@@ -48,14 +54,11 @@ export class UpstreamManager {
   }
 
   async connectServer(serverConfig: ServerConfig): Promise<UpstreamConnection> {
-    if (serverConfig.transport !== "stdio") {
-      throw new UpstreamConnectionError(
-        serverConfig.name,
-        `Transport "${serverConfig.transport}" is not yet supported. Only "stdio" is implemented.`
-      );
+    if (serverConfig.transport === "stdio") {
+      return this.connectStdioServer(serverConfig);
     }
 
-    return this.connectStdioServer(serverConfig);
+    return this.connectHttpServer(serverConfig);
   }
 
   private async connectStdioServer(
@@ -75,6 +78,46 @@ export class UpstreamManager {
       stderr: "pipe",
     });
 
+    const connection = this.createConnection(serverConfig, transport);
+
+    const stderrStream = transport.stderr;
+    if (stderrStream && "on" in stderrStream) {
+      stderrStream.on("data", (chunk: Buffer) => {
+        this.logger.debug(
+          { server: serverName, stderr: chunk.toString().trimEnd() },
+          "Upstream server stderr"
+        );
+      });
+    }
+
+    return this.establishConnection(connection);
+  }
+
+  private async connectHttpServer(
+    serverConfig: HttpServerConfig
+  ): Promise<UpstreamConnection> {
+    const serverName = serverConfig.name;
+
+    this.logger.info(
+      { server: serverName, url: serverConfig.url },
+      "Connecting to upstream HTTP server"
+    );
+
+    const transport = new StreamableHTTPClientTransport(new URL(serverConfig.url), {
+      requestInit: {
+        headers: serverConfig.headers,
+      },
+    });
+
+    const connection = this.createConnection(serverConfig, transport);
+
+    return this.establishConnection(connection);
+  }
+
+  private createConnection(
+    serverConfig: ServerConfig,
+    transport: Transport
+  ): UpstreamConnection {
     const client = new Client(
       { name: MCPGATE_NAME, version: MCPGATE_VERSION },
       { capabilities: {} }
@@ -88,25 +131,33 @@ export class UpstreamManager {
       status: "connecting",
     };
 
-    this.connections.set(serverName, connection);
+    this.connections.set(serverConfig.name, connection);
 
-    const stderrStream = transport.stderr;
-    if (stderrStream && "on" in stderrStream) {
-      stderrStream.on("data", (chunk: Buffer) => {
-        this.logger.debug(
-          { server: serverName, stderr: chunk.toString().trimEnd() },
-          "Upstream server stderr"
-        );
-      });
-    }
+    return connection;
+  }
+
+  private async establishConnection(
+    connection: UpstreamConnection
+  ): Promise<UpstreamConnection> {
+    const serverName = connection.serverConfig.name;
 
     try {
-      await client.connect(transport);
+      await connection.client.connect(connection.transport);
       connection.status = "connected";
 
       this.logger.info({ server: serverName }, "Connected to upstream server");
+    } catch (error) {
+      connection.status = "error";
+      connection.errorMessage = error instanceof Error ? error.message : String(error);
 
-      const toolsResult = await client.listTools();
+      throw new UpstreamConnectionError(
+        serverName,
+        `Failed to connect: ${connection.errorMessage}`
+      );
+    }
+
+    try {
+      const toolsResult = await connection.client.listTools();
       connection.tools = toolsResult.tools;
 
       this.logger.info(
@@ -119,9 +170,33 @@ export class UpstreamManager {
       connection.status = "error";
       connection.errorMessage = error instanceof Error ? error.message : String(error);
 
+      await this.safeCloseConnection(connection);
+
       throw new UpstreamConnectionError(
         serverName,
-        `Failed to connect: ${connection.errorMessage}`
+        `Failed to discover tools: ${connection.errorMessage}`
+      );
+    }
+  }
+
+  private async safeCloseConnection(connection: UpstreamConnection): Promise<void> {
+    try {
+      if (connection.serverConfig.transport === "http") {
+        await (connection.transport as StreamableHTTPClientTransport).terminateSession();
+      }
+    } catch {
+      this.logger.debug(
+        { server: connection.serverConfig.name },
+        "Failed to terminate upstream HTTP session during cleanup"
+      );
+    }
+
+    try {
+      await connection.client.close();
+    } catch {
+      this.logger.debug(
+        { server: connection.serverConfig.name },
+        "Failed to close upstream client during cleanup"
       );
     }
   }
@@ -168,7 +243,7 @@ export class UpstreamManager {
     const disconnectPromises = Array.from(this.connections.entries()).map(
       async ([serverName, connection]) => {
         try {
-          await connection.client.close();
+          await this.safeCloseConnection(connection);
           connection.status = "disconnected";
           this.logger.info({ server: serverName }, "Disconnected from upstream server");
         } catch (error) {

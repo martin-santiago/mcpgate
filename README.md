@@ -104,6 +104,22 @@ logging:
 
 See [mcpgate.example.yaml](./mcpgate.example.yaml) for the full reference.
 
+### Supported Upstream Transports
+
+- **`stdio`** — MCPGate spawns the upstream process locally
+- **`http`** — MCPGate connects to a remote MCP server over Streamable HTTP
+
+Example HTTP upstream:
+
+```yaml
+servers:
+  - name: "remote-api"
+    transport: "http"
+    url: "https://remote-mcp.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${REMOTE_MCP_TOKEN}"
+```
+
 ### Tool Filtering
 
 Each server supports `allow` or `block` (mutually exclusive):

@@ -35,7 +35,7 @@ servers:
         - "write_file"
         - "delete_file"
 
-  # Remote HTTP server
+  # Remote HTTP server — MCPGate connects as an MCP client over Streamable HTTP
   # - name: "remote-api"
   #   transport: "http"
   #   url: "https://my-remote-mcp.example.com/mcp"
