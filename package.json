@@ -1,0 +1,18 @@
+{
+  "name": "mcpgate",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "build": "pnpm --recursive --if-present run build",
+    "build:api": "pnpm --filter mcpgate-api run build",
+    "build:cli": "pnpm --filter mcpgate-cli run build",
+    "build:web": "pnpm --filter mcpgate-web run build",
+    "lint": "pnpm --recursive --if-present run lint",
+    "lint:api": "pnpm --filter mcpgate-api run lint",
+    "lint:web": "pnpm --filter mcpgate-web run lint",
+    "test": "pnpm --recursive --if-present run test",
+    "test:api": "pnpm --filter mcpgate-api run test"
+  },
+  "devDependencies": {}
+}

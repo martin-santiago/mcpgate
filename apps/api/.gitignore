@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+dist/
+
+# Environment files - NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Build
+/dist
+/build

@@ -1,0 +1,29 @@
+{
+  "name": "mcpgate-cli",
+  "version": "0.0.1",
+  "private": true,
+  "description": "CLI-first entrypoint for MCPGate",
+  "license": "MIT",
+  "bin": {
+    "mcpgate": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@oclif/core": "^4.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "oclif": {
+    "bin": "mcpgate",
+    "commands": "./dist/commands",
+    "topicSeparator": " "
+  }
+}
