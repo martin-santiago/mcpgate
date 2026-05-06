@@ -55,6 +55,10 @@ type CreateSourcePayload = {
   type: SourceRecord['type']
 }
 
+type ApiErrorPayload = {
+  message?: string
+}
+
 export class ApiService {
   constructor(private readonly config: McpGateConfig) {}
 
@@ -72,8 +76,16 @@ export class ApiService {
     })
 
     if (!response.ok) {
-      const errorPayload = await response.json().catch(() => ({ message: response.statusText }))
-      throw new Error(errorPayload.message || `Request failed with status ${response.status}`)
+      const errorPayload = (await response.json().catch(() => ({ message: response.statusText }))) as ApiErrorPayload
+      const responseMessage = errorPayload.message || `Request failed with status ${response.status}`
+
+      if (response.status === 401) {
+        throw new Error(
+          `${responseMessage}. Local CLI requests require the API to run in local mode. Run \`mcpgate start\` or start the API with MCPGATE_LOCAL_MODE=true.`,
+        )
+      }
+
+      throw new Error(responseMessage)
     }
 
     return response.json() as Promise<T>

@@ -25,14 +25,14 @@ export class ConfigService {
       },
       services: {
         api: {
-          command: 'yarn start:dev',
-          cwd: path.join(workspaceRoot, 'mcpgate-api'),
+          command: 'pnpm --filter mcpgate-api run start:dev',
+          cwd: workspaceRoot,
           healthUrl: 'http://127.0.0.1:3001/api',
           port: 3001,
         },
         web: {
-          command: 'npm run dev',
-          cwd: path.join(workspaceRoot, 'mcpgate-web'),
+          command: 'pnpm --filter mcpgate-web run dev',
+          cwd: workspaceRoot,
           healthUrl: 'http://127.0.0.1:3000',
           port: 3000,
         },

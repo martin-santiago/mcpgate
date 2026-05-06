@@ -1,9 +1,13 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 
 import type { DoctorCheck, McpGateConfig } from '../types/config'
 import { isNodeVersionSupported } from '../utils/env'
 import { getConfigPath, getDefaultHomeDir } from '../utils/paths'
 import { isPortAvailable } from '../utils/ports'
+
+const expectedApiCommand = 'pnpm --filter mcpgate-api run start:dev'
+const expectedWebCommand = 'pnpm --filter mcpgate-web run dev'
 
 async function pathExists(targetPath: string): Promise<boolean> {
   try {
@@ -64,15 +68,39 @@ export class DoctorService {
     })
 
     checks.push({
-      details: config.services.api.cwd,
-      label: 'API workspace path',
-      status: (await pathExists(config.services.api.cwd)) ? 'pass' : 'warn',
+      details: config.paths.workspaceRoot,
+      label: 'Monorepo workspace root',
+      status: (await pathExists(path.join(config.paths.workspaceRoot, 'pnpm-workspace.yaml'))) ? 'pass' : 'warn',
     })
 
     checks.push({
-      details: config.services.web.cwd,
-      label: 'Web workspace path',
-      status: (await pathExists(config.services.web.cwd)) ? 'pass' : 'warn',
+      details: path.join(config.paths.workspaceRoot, 'pnpm-lock.yaml'),
+      label: 'pnpm lockfile',
+      status: (await pathExists(path.join(config.paths.workspaceRoot, 'pnpm-lock.yaml'))) ? 'pass' : 'warn',
+    })
+
+    checks.push({
+      details: path.join(config.paths.workspaceRoot, 'apps/api'),
+      label: 'API app path',
+      status: (await pathExists(path.join(config.paths.workspaceRoot, 'apps/api'))) ? 'pass' : 'warn',
+    })
+
+    checks.push({
+      details: path.join(config.paths.workspaceRoot, 'apps/web'),
+      label: 'Web app path',
+      status: (await pathExists(path.join(config.paths.workspaceRoot, 'apps/web'))) ? 'pass' : 'warn',
+    })
+
+    checks.push({
+      details: config.services.api.command,
+      label: 'API start command',
+      status: config.services.api.cwd === config.paths.workspaceRoot && config.services.api.command === expectedApiCommand ? 'pass' : 'warn',
+    })
+
+    checks.push({
+      details: config.services.web.command,
+      label: 'Web start command',
+      status: config.services.web.cwd === config.paths.workspaceRoot && config.services.web.command === expectedWebCommand ? 'pass' : 'warn',
     })
 
     for (const [serviceName, serviceConfig] of Object.entries(config.services)) {

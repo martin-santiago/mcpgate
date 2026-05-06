@@ -7,6 +7,11 @@ type ManagedChildProcess = {
   name: ManagedServiceName
 }
 
+type LocalServiceStartOptions = {
+  apiOnly: boolean
+  readinessTimeoutMs: number
+}
+
 async function wait(milliseconds: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
@@ -65,6 +70,7 @@ function startManagedService(
 
   const childProcess = spawn(serviceConfig.command, {
     cwd: serviceConfig.cwd,
+    detached: true,
     env: {
       ...process.env,
       ...envOverrides,
@@ -79,30 +85,47 @@ function startManagedService(
   return { childProcess, name }
 }
 
+function stopManagedProcess(managedProcess: ManagedChildProcess): void {
+  const processId = managedProcess.childProcess.pid
+
+  if (!processId) return
+
+  try {
+    process.kill(-processId, 'SIGTERM')
+  } catch {
+    managedProcess.childProcess.kill('SIGTERM')
+  }
+}
+
 export class LocalServiceManager {
-  async start(config: McpGateConfig): Promise<void> {
-    const managedProcesses = [
-      startManagedService('api', config.services.api, config.storage.sqlitePath),
-      startManagedService('web', config.services.web, config.storage.sqlitePath),
-    ]
+  async start(config: McpGateConfig, options: LocalServiceStartOptions): Promise<void> {
+    const managedProcesses = [startManagedService('api', config.services.api, config.storage.sqlitePath)]
+
+    if (!options.apiOnly) {
+      managedProcesses.push(startManagedService('web', config.services.web, config.storage.sqlitePath))
+    }
 
     const cleanup = () => {
       for (const managedProcess of managedProcesses) {
-        managedProcess.childProcess.kill('SIGTERM')
+        stopManagedProcess(managedProcess)
       }
     }
 
     process.on('SIGINT', cleanup)
     process.on('SIGTERM', cleanup)
 
-    const [apiReady, webReady] = await Promise.all([
-      waitForService(config.services.api.healthUrl),
-      waitForService(config.services.web.healthUrl),
-    ])
+    const apiReady = await waitForService(config.services.api.healthUrl, options.readinessTimeoutMs)
+    const webReady = options.apiOnly
+      ? false
+      : await waitForService(config.services.web.healthUrl, options.readinessTimeoutMs)
 
     process.stdout.write('\nMCPGate local services\n')
     process.stdout.write(`- API: ${config.services.api.healthUrl} (${apiReady ? 'ready' : 'starting'})\n`)
-    process.stdout.write(`- Dashboard: ${config.services.web.healthUrl} (${webReady ? 'ready' : 'starting'})\n`)
+    process.stdout.write(
+      options.apiOnly
+        ? '- Dashboard: skipped by API-only mode\n'
+        : `- Dashboard: ${config.services.web.healthUrl} (${webReady ? 'ready' : 'starting'})\n`,
+    )
     process.stdout.write(`- Storage: ${config.storage.mode} -> ${config.storage.sqlitePath}\n`)
     process.stdout.write(`- Logs: ${config.paths.logsDir}\n`)
     if (!apiReady) {
