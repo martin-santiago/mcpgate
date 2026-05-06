@@ -40,9 +40,14 @@ export default class Start extends Command {
     )
 
     const localServiceManager = new LocalServiceManager()
-    await localServiceManager.start(config, {
-      apiOnly: flags['api-only'],
-      readinessTimeoutMs: flags.timeout * 1_000,
-    })
+    try {
+      await localServiceManager.start(config, {
+        apiOnly: flags['api-only'],
+        readinessTimeoutMs: flags.timeout * 1_000,
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unable to start MCPGate local services.'
+      this.error(errorMessage)
+    }
   }
 }

@@ -2,7 +2,7 @@
 
 Living status ledger for MCPGate. This file tracks execution progress only; product requirements, architecture details, and full roadmap definitions remain in the existing planning docs.
 
-Last updated: 2026-05-05  
+Last updated: 2026-05-06  
 Current stage: Stage 0 — Foundation / Pre-MVP  
 Current status: Foundation local CLI/API control-plane smoke passes with placeholder discovery; MVP runtime path is not demoable yet.
 
@@ -39,6 +39,7 @@ Validated on 2026-05-05:
 - Controlled CLI/API local-mode smoke passes with temporary `HOME`, API local mode, and SQLite: `init`, `doctor`, API readiness via `GET /api/workspaces`, `source list`, `source add demo --type custom --url http://localhost:9999`, `source list`, `source discover <id>`, and `tools list`.
 - User-facing smoke now passes through `node apps/cli/dist/index.js start --api-only --timeout 45` with a temporary `HOME`: `init`, API readiness through `source list`, `source add demo --type custom --url http://localhost:9999`, `source discover <id>`, `tools list`, and process cleanup leaving ports 3000/3001 free.
 - Local SQLite on Node 24 required rebuilding the native `sqlite3` binding before API startup; the API currently has no dedicated unauthenticated health endpoint, so readiness was verified through local-mode `GET /api/workspaces`.
+- CLI config read now auto-migrates legacy pre-monorepo service commands (`yarn start:dev`, `npm run dev`) and stale service cwd values to root `pnpm --filter` defaults while preserving user config data; temporary-home `doctor` and `start --api-only --timeout 2` validation passed without legacy command warnings or raw spawn stacktraces.
 
 ## Stage Definitions
 

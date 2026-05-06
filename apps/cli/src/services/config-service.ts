@@ -1,8 +1,43 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import type { McpGateConfig } from '../types/config'
+import type { ManagedServiceConfig, McpGateConfig } from '../types/config'
 import { getConfigPath, getDefaultHomeDir, getDefaultWorkspaceRoot } from '../utils/paths'
+
+type ConfigFile = Partial<McpGateConfig> & Record<string, unknown>
+
+const legacyServiceCommands = {
+  api: ['yarn start:dev', 'npm run start:dev'],
+  web: ['npm run dev', 'yarn dev'],
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeServiceConfig(
+  currentServiceConfig: Partial<ManagedServiceConfig> | undefined,
+  defaultServiceConfig: ManagedServiceConfig,
+  legacyCommands: string[],
+): ManagedServiceConfig {
+  const mergedServiceConfig = {
+    ...defaultServiceConfig,
+    ...currentServiceConfig,
+  }
+
+  if (legacyCommands.includes(mergedServiceConfig.command)) {
+    return defaultServiceConfig
+  }
+
+  if (mergedServiceConfig.command === defaultServiceConfig.command && mergedServiceConfig.cwd !== defaultServiceConfig.cwd) {
+    return {
+      ...mergedServiceConfig,
+      cwd: defaultServiceConfig.cwd,
+    }
+  }
+
+  return mergedServiceConfig
+}
 
 export class ConfigService {
   getDefaultConfig(): McpGateConfig {
@@ -76,12 +111,47 @@ export class ConfigService {
   async readConfig(): Promise<McpGateConfig> {
     const configPath = getConfigPath(getDefaultHomeDir())
     const fileContents = await fs.readFile(configPath, 'utf8')
-    const parsedConfig = JSON.parse(fileContents) as Partial<McpGateConfig>
+    const parsedConfig = JSON.parse(fileContents) as ConfigFile
 
     if (parsedConfig.version !== 1 || !parsedConfig.paths || !parsedConfig.services || !parsedConfig.storage) {
       throw new Error(`Invalid MCPGate config at ${configPath}`)
     }
 
-    return parsedConfig as McpGateConfig
+    const defaultConfig = this.getDefaultConfig()
+    const currentPaths: Record<string, unknown> = isRecord(parsedConfig.paths) ? parsedConfig.paths : {}
+    const currentServices: Record<string, unknown> = isRecord(parsedConfig.services) ? parsedConfig.services : {}
+    const currentStorage: Record<string, unknown> = isRecord(parsedConfig.storage) ? parsedConfig.storage : {}
+    const normalizedConfig: ConfigFile = {
+      ...parsedConfig,
+      paths: {
+        ...defaultConfig.paths,
+        ...currentPaths,
+        workspaceRoot: defaultConfig.paths.workspaceRoot,
+      },
+      services: {
+        ...currentServices,
+        api: normalizeServiceConfig(
+          isRecord(currentServices.api) ? currentServices.api : undefined,
+          defaultConfig.services.api,
+          legacyServiceCommands.api,
+        ),
+        web: normalizeServiceConfig(
+          isRecord(currentServices.web) ? currentServices.web : undefined,
+          defaultConfig.services.web,
+          legacyServiceCommands.web,
+        ),
+      },
+      storage: {
+        ...defaultConfig.storage,
+        ...currentStorage,
+      },
+    }
+
+    if (JSON.stringify(parsedConfig) !== JSON.stringify(normalizedConfig)) {
+      await this.ensureHomeStructure(normalizedConfig as McpGateConfig)
+      await fs.writeFile(configPath, `${JSON.stringify(normalizedConfig, null, 2)}\n`, 'utf8')
+    }
+
+    return normalizedConfig as McpGateConfig
   }
 }

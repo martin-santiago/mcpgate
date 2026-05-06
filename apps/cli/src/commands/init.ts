@@ -9,6 +9,7 @@ export default class Init extends Command {
     const configService = new ConfigService()
 
     if (await configService.hasConfig()) {
+      await configService.readConfig()
       this.log('MCPGate is already initialized.')
       this.log('Use `mcpgate doctor` to inspect the current local setup.')
       return

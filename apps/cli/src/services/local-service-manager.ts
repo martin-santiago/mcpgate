@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import fs from 'node:fs'
 
 import type { ManagedServiceConfig, ManagedServiceName, McpGateConfig } from '../types/config'
 
@@ -45,11 +46,39 @@ function pipeProcessOutput(name: string, stream: NodeJS.ReadableStream | null, w
   })
 }
 
+function formatProcessError(name: ManagedServiceName, serviceConfig: ManagedServiceConfig, error: NodeJS.ErrnoException): string {
+  const errorCode = error.code ? ` (${error.code})` : ''
+  return [
+    `Unable to start MCPGate ${name}${errorCode}.`,
+    `Command: ${serviceConfig.command}`,
+    `Working directory: ${serviceConfig.cwd}`,
+    'Run `mcpgate doctor` to repair legacy local config and verify the monorepo setup.',
+  ].join('\n')
+}
+
+function validateManagedServiceConfig(name: ManagedServiceName, serviceConfig: ManagedServiceConfig): void {
+  if (!serviceConfig.command.trim()) {
+    throw new Error(`Unable to start MCPGate ${name}: start command is empty. Run \`mcpgate doctor\` to repair local config.`)
+  }
+
+  if (!fs.existsSync(serviceConfig.cwd)) {
+    throw new Error(
+      [
+        `Unable to start MCPGate ${name}: working directory does not exist.`,
+        `Working directory: ${serviceConfig.cwd}`,
+        'Run `mcpgate doctor` to repair legacy local config and verify the monorepo setup.',
+      ].join('\n'),
+    )
+  }
+}
+
 function startManagedService(
   name: ManagedServiceName,
   serviceConfig: ManagedServiceConfig,
   sqlitePath: string,
 ): ManagedChildProcess {
+  validateManagedServiceConfig(name, serviceConfig)
+
   const envOverrides: Record<string, string> = {
     PORT: String(serviceConfig.port),
   }
@@ -81,6 +110,10 @@ function startManagedService(
 
   pipeProcessOutput(name, childProcess.stdout, process.stdout)
   pipeProcessOutput(name, childProcess.stderr, process.stderr)
+
+  childProcess.once('error', (error: NodeJS.ErrnoException) => {
+    process.stderr.write(`${formatProcessError(name, serviceConfig, error)}\n`)
+  })
 
   return { childProcess, name }
 }
